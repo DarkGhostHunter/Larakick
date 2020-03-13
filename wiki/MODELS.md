@@ -10,32 +10,32 @@ namespace: App\
 models:
   User:
     columns: 
-      id:
+      id: ~
       name: string
       email: string unique
       email_verified_at: timestamp nullable
       password: string
-      rememberToken: 
-      timestamps:
+      rememberToken: ~ 
+      timestamps: ~
     primary: id
 
   Post:
     columns:
-      id:
+      id: ~
 	  uuid: uuid
 	  title: string
 	  excerpt: string nullable
 	  body: text
 	  author: belongsTo:User
 	  published_at: timestampTz
-	  timestampsTz:
+	  timestampsTz: ~
 	
   Image:
     columns:
-      id:
+      id: ~
 	  path: string
 	  imageable: morphsTo
-	  timestampsTz:
+	  timestampsTz: ~
 ```
 
 ## Namespace
@@ -71,18 +71,18 @@ namespace: App\Models
 models:
   Podcast:
     columns: 
-      uuid:
-	  show: 
+      uuid: ~
+	  show: ~
 	    column: show_uuid
 		relation: belongsTo:Show withDefault
       name: string
 	  slug: string
 	  length: int
 	  published_at: timestamp
-      timestamps:
-	  softDeletes:
+      timestamps: ~
+	  softDeletes: ~
     perPage: 20
-    primary:
+    primary: ~
 	  column: slug
 	  keyType: string
 	  incrementing: false
@@ -229,8 +229,8 @@ Schema::table('model_name', function (Blueprint $table) {
 If a column key has no value, a method with no arguments will be pushed.
 
 ```yaml
-  timestampsTz:
-  rememberToken:
+  timestampsTz: ~
+  rememberToken: ~
 ```
 
 The above will create:
@@ -250,7 +250,7 @@ To make a model soft-deletable, just issue the `softDeletes` or `softDeletesTz` 
 Model:
   columns:
 	# ...
-    softDeletes:
+    softDeletes: ~
 ```
 
 The above will generate a Model like this:
@@ -289,13 +289,13 @@ To make relations, issue the name of the relation followed by a collection of th
 ```yaml
   Comment:
     columns: 
-      id:
+      id: ~
       author:
         relation: belongsTo:User
 
   User:
     columns:
-      id:
+      id: ~
       comments:
         relation: hasMany:Comment
 ```
@@ -332,7 +332,7 @@ Alternatively, you can change the default column to create, and add a foreign co
 ```yaml
   Post:
     columns:
-      id:
+      id: ~
       author:
 	    column: author_id
 		relation: belongsTo:User,id withDefault
@@ -356,14 +356,14 @@ For Morph relations, you can just simply set it as `morphsTo`.
 ```yaml
   Image:
     columns:
-      id:
+      id: ~
 	  imageable:
         nullable: false
 		relation: morphsTo:imageable
 
   Post:
     columns:
-      id:
+      id: ~
       image:
         relation: morphOne:Image,imageable
 ```
@@ -402,7 +402,7 @@ To set a primary key from other column, you can override the primary key using t
 ```yaml
 Podcast:
   columns:
-    id:
+    id: ~
 	slug: string
     ...
 	
@@ -472,7 +472,7 @@ By default, all models have a timestamp for `created_at` and `update_at`. If a m
 You can change the default columns using the `timestamps` key.
 
 ```yaml
-Model:
+Podcast:
   columns:
 	...
     creation_date: timestamp
@@ -492,28 +492,32 @@ class Podcast extends Model
 }
 ```
 
-### Pivot Models
+### Policies
+
+Policies are Gates logic revolving CRUD operations over a Model. For your sanity, [authorization is handled separately](AUTHORIZATION.md).
+
+## Pivot Models
 
 Some relations may need a Pivot table. To create a pivot table, or a morphable pivot table, you can set the `type` key to pivot.
 
 ```yaml
 User:
   columns:
-	id:
+	id: ~
     name: string
     roles:
       relation: belongsToMany:Role using:RoleUser withPivot:created_at,updated_at
 
 Role:
   columns:
-    id:
+    id: ~
     name: string
     users:
       relation: belongsToMany:User using:RoleUser
 
 RoleUser:
   columns:
-    user:
+    user: ~
       column: user_id
       relation: belongsTo:User
     role:
@@ -588,7 +592,7 @@ Factories for Models are created automatically. Larakick will try to guess the `
 ```yaml
 Podcast:
   columns:
-    id:
+    id: ~
     name: string
     published_at: timestamp nullable
     length: int
@@ -675,10 +679,10 @@ By default, these are not created, but you can enable them using the `jsonResour
 ```yaml
 Podcast:
   columns:
-    id:
+    id: ~
     name: string
     length: int
-    timestamps:
+    timestamps: ~
   resource: true
 ```
 

@@ -1,6 +1,13 @@
+![Edoardo Busti - Unsplash #2QwMsZ1TIdI](https://images.unsplash.com/photo-1508087625439-de3978963553?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=1280&q=80&h=400)
+
+[![Latest Version on Packagist](https://img.shields.io/packagist/v/darkghosthunter/larakick.svg?style=flat-square)](https://packagist.org/packages/darkghosthunter/larakick) [![License](https://poser.pugx.org/darkghosthunter/larakick/license)](https://packagist.org/packages/darkghosthunter/larakick)
+![](https://img.shields.io/packagist/php-v/darkghosthunter/larakick.svg)
+ ![](https://github.com/DarkGhostHunter/Larakick/workflows/PHP%20Composer/badge.svg)
+[![Coverage Status](https://coveralls.io/repos/github/DarkGhostHunter/Larakick/badge.svg?branch=master)](https://coveralls.io/github/DarkGhostHunter/Larakick?branch=master)
+
 # Larakick  
 
-Create models (including migrations, factories and seeders), controllers, gates, requests, events and jobs with ease.
+Scaffold your project models, database, controllers, requests, events and jobs with ease and flexibility.
 
 **How does it work?**
 
@@ -29,17 +36,36 @@ Once you edit your YAML files, kick off the assistant with this artisan command.
 
     php artisan kickoff:start
 
-If you edit your YAML files, changes won't be automatically reflected in your project. To update your project, you can use this command:
+If you edit your YAML files, changes won't be automatically reflected in your project. To update your project, you can use again `kickoff:start`
 
-    php artisan kickoff:update
+If you have [history](#history) enabled, you can rollback any changes to the previous state, including your YAML files.
 
-This command will remove, modify and create any file depending on the changes, and save it in a versioning system. Alternatively, you can rollback any changes using `rollback`.
+    php artisan kickoff:undo
+    
+The above accepts rolling back a number of times using `--times=X` and going back to the first state using `--times=initial`.
 
-    php artisan kickoff:rollback
+> When starting again from a rollback, subsequent rollbacks are deleted. Think it as using "undo".
 
-Finally, you can wipe clean all changes and start again using `remove`.
+## Configuration
 
-    php artisan kickoff:remove
+```php
+<?php
+return [
+    'history' => false,
+    'max' => 10,
+    'path' => storage_path('larakick')
+];
+```
+
+### History
+
+Larakick can save a copy of your `kickoff`, `app`, `database` and `routes` directories in your storage folder before making changes. It's disabled by default, you can enable it by setting it to `true`.
+
+### Maximum rollbacks
+
+To avoid making the history uncontrollably bigger, you can set a maximum set of rollbacks. 
+
+> This won't delete the initial state of your application, just before the first Larakick scaffold.
 
 ## Generating your app
 
@@ -47,6 +73,7 @@ The whole documentation is on these files, since these covers a lot more than a 
 
 * [Models](wiki/MODELS.md): migrations, factories, seeders and JSON resources.
 * [HTTP](wiki/HTTP.md): Controllers, routes, and internal logic (queries, events, jobs, notifications, validation requests, etc.)
+* [Authorization](wiki/AUTHORIZATION.md): Gates, policies, Form Requests with validation and authorization.
 
 ## License
 

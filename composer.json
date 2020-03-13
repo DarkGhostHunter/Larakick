@@ -19,7 +19,8 @@
         "php": "^7.2.15",
         "illuminate/support": "^7.0",
         "symfony/yaml": "^5.0",
-        "symfony/finder": "^5.0"
+        "symfony/finder": "^5.0",
+        "nette/php-generator": "^3.3"
     },
     "require-dev": {
         "orchestra/testbench": "^5.0",
