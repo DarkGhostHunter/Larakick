@@ -22,20 +22,20 @@ models:
   Post:
     columns:
       id: ~
-	  uuid: uuid
-	  title: string
-	  excerpt: string nullable
-	  body: text
-	  author: belongsTo:User
-	  published_at: timestampTz
-	  timestampsTz: ~
-	
+      uuid: uuid
+      title: string
+      excerpt: string nullable
+      body: text
+      author: belongsTo:User
+      published_at: timestampTz
+      timestampsTz: ~
+    
   Image:
     columns:
       id: ~
-	  path: string
-	  imageable: morphsTo
-	  timestampsTz: ~
+      path: string
+      imageable: morphsTo
+      timestampsTz: ~
 ```
 
 ## Namespace
@@ -72,24 +72,24 @@ models:
   Podcast:
     columns: 
       uuid: ~
-	  show: ~
-	    column: show_uuid
-		relation: belongsTo:Show withDefault
+      show: ~
+        column: show_uuid
+        relation: belongsTo:Show withDefault
       name: string
-	  slug: string
-	  length: int
-	  published_at: timestamp
+      slug: string
+      length: int
+      published_at: timestamp
       timestamps: ~
-	  softDeletes: ~
+      softDeletes: ~
     perPage: 20
     primary: ~
-	  column: slug
-	  keyType: string
-	  incrementing: false
-	fillable:
-	  - name
-	  - slug
-	  - length
+      column: slug
+      keyType: string
+      incrementing: false
+    fillable:
+      - name
+      - slug
+      - length
 
   # ...
 ```
@@ -132,7 +132,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  */
 class Podcast extends Model
 {
-	use SoftDeletes;
+    use SoftDeletes;
 
     /**
      * The primary key for the model.
@@ -161,7 +161,7 @@ class Podcast extends Model
      * @var int
      */
     protected $perPage = 20;
-	
+    
     /**
      * The attributes that should be cast to native types.
      *
@@ -177,23 +177,23 @@ class Podcast extends Model
      * @var array
      */
     protected $dates = [
-	    'published_at',
-	    'created_at',
-	    'updated_at',
-	    'deleted_at',
-	];
-	
+        'published_at',
+        'created_at',
+        'updated_at',
+        'deleted_at',
+    ];
+    
     /**
      * The attributes that are mass assignable.
      *
      * @var array
      */
     protected $fillable = [
-	  'name',
-	  'slug',
-	  'length',
+      'name',
+      'slug',
+      'length',
     ];
-	
+    
     /**
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo | \App\Models\Show
      */
@@ -249,7 +249,7 @@ To make a model soft-deletable, just issue the `softDeletes` or `softDeletesTz` 
 ```yaml
 Model:
   columns:
-	# ...
+    # ...
     softDeletes: ~
 ```
 
@@ -267,7 +267,7 @@ Alternatively, you can issue the column name to use as soft-deletes, that will b
 ```yaml
 Model:
   columns:
-	# ...
+    # ...
     softDeletes: soft_deleted_at
 ```
 
@@ -277,8 +277,8 @@ The above will generate a Model like this:
 class Podcast extends Model
 {
     use SoftDeletes;
-	
-	protected const DELETED_AT = 'soft_deleted_at';
+    
+    protected const DELETED_AT = 'soft_deleted_at';
 }
 ```
 
@@ -334,8 +334,8 @@ Alternatively, you can change the default column to create, and add a foreign co
     columns:
       id: ~
       author:
-	    column: author_id
-		relation: belongsTo:User,id withDefault
+        column: author_id
+        relation: belongsTo:User,id withDefault
         foreign: User onDelete:cascade
 ```
 
@@ -357,9 +357,9 @@ For Morph relations, you can just simply set it as `morphsTo`.
   Image:
     columns:
       id: ~
-	  imageable:
+      imageable:
         nullable: false
-		relation: morphsTo:imageable
+        relation: morphsTo:imageable
 
   Post:
     columns:
@@ -403,13 +403,13 @@ To set a primary key from other column, you can override the primary key using t
 Podcast:
   columns:
     id: ~
-	slug: string
+    slug: string
     ...
-	
+    
   primary:
     column: slug
-	keyType: string
-	incrementing: false
+    keyType: string
+    incrementing: false
 ```
 
 The above will create a migration like this:
@@ -417,7 +417,7 @@ The above will create a migration like this:
 ```php
 Schema::table('podcasts', function (Blueprint $table) {
     $table->string('slug');
-	// ...
+    // ...
 
     $table->primary('slug');
 });
@@ -429,10 +429,10 @@ Models, on the other hand, will define the primary key as follows:
 class Podcast extends Model
 {
     protected $primary = 'slug';
-	protected $keyType = 'string';
-	protected $incrementing = false
-	
-	// ...
+    protected $keyType = 'string';
+    protected $incrementing = false
+    
+    // ...
 }
 ```
 
@@ -444,12 +444,12 @@ You can add fillable properties to the Model right from the Model declaration us
 Model:
   columns:
     name: string
-	email: string
-	...
-	
+    email: string
+    ...
+    
   fillable:
     - name
-	- email
+    - email
 ```
 
 The above will generate a Model like this:
@@ -458,10 +458,10 @@ The above will generate a Model like this:
 class Podcast extends Model
 {
     protected $fillable = [
-	  'name', 'email',
-	];
-	
-	// ...
+      'name', 'email',
+    ];
+    
+    // ...
 }
 ```
 
@@ -474,12 +474,12 @@ You can change the default columns using the `timestamps` key.
 ```yaml
 Podcast:
   columns:
-	...
+    ...
     creation_date: timestamp
-	
+    
   timestamps:
     created_at: creation_date
-	updated_at: null
+    updated_at: null
 ```
 
 The above will generate a Model like this:
@@ -503,7 +503,7 @@ Some relations may need a Pivot table. To create a pivot table, or a morphable p
 ```yaml
 User:
   columns:
-	id: ~
+    id: ~
     name: string
     roles:
       relation: belongsToMany:Role using:RoleUser withPivot:created_at,updated_at
