@@ -1,4 +1,4 @@
-# Larakick 2.0
+# Larakick  
 
 Create models (including migrations, factories and seeders), controllers, gates, requests, events and jobs with ease.
 
