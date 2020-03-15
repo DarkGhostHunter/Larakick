@@ -24,6 +24,7 @@
     },
     "require-dev": {
         "orchestra/testbench": "^5.0",
+        "orchestra/canvas": "^5.0",
         "phpunit/phpunit": "^8.0"
     },
     "autoload": {

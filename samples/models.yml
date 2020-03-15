@@ -1,0 +1,63 @@
+namespace: App
+
+models:
+
+  User:
+    columns:
+      id: ~
+      name: string
+      email: string
+      email_verified_at: timestamp nullable
+      password: string
+      is_admin: boolean default:false
+      rememberToken: ~
+      timestamps: ~
+      comments:
+        relation: hasMany:Comment,author_id
+      posts:
+        relation: hasMany:Post,author_id
+    fillable:
+      - name
+      - email
+      - password
+
+  Post:
+    columns:
+      uuid: ~
+      title: string
+      body: longText
+      author:
+        relation: belongsTo:User
+      timestamps: ~
+      comments:
+        relation: hasMany:Comment,author_id
+    primary:
+      column: uuid
+      autoincrement: false
+      type: string
+    fillable:
+      - title
+      - body
+
+  Comment:
+    columns:
+      id: ~
+      body: string
+      author:
+        relation: belongsTo:User
+      post:
+        relation: hasOne:Post
+      moderated: bool default:false
+      timestamps: ~
+    fillable:
+      - body
+
+migrations:
+  failed_jobs:
+    id: ~
+    connection: text
+    queue: text
+    payload: longText
+    exception: longText
+    failed_at: timestamp useCurrent
+

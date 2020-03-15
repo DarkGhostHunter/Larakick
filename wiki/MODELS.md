@@ -1,11 +1,13 @@
 # Models
 
-Models in Larakick are defined in `kickoff/models.yml`. Creating a model will spawn their migration, factory and seeder automatically.
+Larakick makes setting your database a breeze, avoiding rounds of syncing your models with your migrations, factories, seeders, and most importantly, relations. 
 
-The schema is very basic:
+Models in Larakick are defined in `larakick/models.yml`. Creating a model will spawn their migration, factory and seeder automatically. You don't have to do nothing.
+
+The schema is relatively basic:
 
 ```yaml
-namespace: App\
+namespace: App
 
 models:
   User:
@@ -36,31 +38,86 @@ models:
       path: string
       imageable: morphsTo
       timestampsTz: ~
+
+migrations:
+  failed_jobs:
+    id: ~
+    connection: text
+    queue: text
+    payload: longText
+    exception: longText
+    failed_at: timestamp useCurrent
 ```
+
+> To set a null value into a key you can use `~`, which is semantically preferred over `null`.
 
 ## Namespace
 
-The namespace of all the Models are created as the `namespace` key says. Every model will prepend the namespace as says.
+The namespace of all the Models is set in the `namespace` key says. Every model will prepend that namespace, an be created under PSR-4 standard.
 
-You can change this to your convenience. The path of the models will mirror the namespace as per PSR-4.
+You can change this to your convenience.
 
 ```yaml
 namespace: Any\Namespace\You\Want
 ```
 
-## Model
+## Models
 
-Models are defined by its key, and reflects the Model name as it is. Migrations are created using using studly case on plural.
+Models are named by the key name in singular. Migrations are created using using studly case on plural.
 
 For example, `GameLeaderboard` will make a table called `game_leaderboards`.
 
-### Automated logic
+```yaml
+models:
+  GameLeaderboard:
+    # ...
+```
+
+```php
+<?php
+
+class GameLeaderboard extends Model
+{
+    // ...
+}
+```
+
+```php
+Schema::create('game_leaderboards', function (Blueprint $table) {
+    // ...
+});
+```
+
+You can also append the model name to a namespace:
+
+```yaml
+namespace: App\Models
+
+models:
+  Leaderboards\Moba:
+    # ...
+```
+
+The above will spawn:
+
+```php
+<?php
+
+namespace App\Models\Leaderboards;
+
+use Illuminate\Database\Eloquent\Model;
+
+class Moba extends Model
+{
+    // ...
+}
+```
 
 When creating a model, the following logic will be automated for you:
 
-* Casting columns to their appropriate type (strings, integers, floats, ...).
-* Declaring columns as `date` and `datetime`.
-* PHPDoc mixin for Eloquent Builder, `create` and `make` methods.
+* [Casting attributes](https://laravel.com/docs/7.x/eloquent-mutators#attribute-casting) to their appropriate type (strings, integers, floats... ).
+* [Mutating dates](https://laravel.com/docs/7.x/eloquent-mutators#date-mutators) columns as `date` and `datetime`.
+* PHPDoc mixin for Eloquent Builder, `create` and `make` methods among others.
 * PHPDoc blocks for model properties and relations.
 
 For example, this `Podcast` model will create the following model:
@@ -72,17 +129,19 @@ models:
   Podcast:
     columns: 
       uuid: ~
-      show: ~
+      show:
         column: show_uuid
         relation: belongsTo:Show withDefault
+      subscribers:
+        relation: hasMany:User
       name: string
       slug: string
       length: int
-      published_at: timestamp
+      published_at: timestamp nullable
       timestamps: ~
       softDeletes: ~
     perPage: 20
-    primary: ~
+    primary:
       column: slug
       keyType: string
       incrementing: false
@@ -119,7 +178,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @method static App\Models\Podcast updateOrCreate(array $attributes, array $values = [])
  * 
  * @property-read \App\Models\Show $show
- * 
+ * @property-read \Illuminate\Database\Eloquent\Collection $listeners
+ *  
  * @property-read string $uuid
  * @property string $show_uuid
  * @property string $name
@@ -178,9 +238,6 @@ class Podcast extends Model
      */
     protected $dates = [
         'published_at',
-        'created_at',
-        'updated_at',
-        'deleted_at',
     ];
     
     /**
@@ -201,32 +258,40 @@ class Podcast extends Model
     {
         return $this->belongsTo(Show::class);
     }
+    
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany | \App\Models\User 
+     */
+    public function subscribers()
+    {
+        return $this->hasMany(User::class);
+    }
 }
 ```
 
 ### Columns
 
-Columns names are defined by its key, while the type mimics the method calling in the Blueprint class. Arguments for the method are defined after the colon, and separated by comma:
+Columns names are defined by its their key name, while the type mimics the method calling in the Blueprint class. Additional arguments for the method are defined after the colon, and separated by comma:
 
 ```yaml
-  ModelName:
-     columns:
-       name: type:foo,bar modifier:quz thing
+Post:
+  columns:
+    claps: integer:true,true index 
 ```
 
 The above will create a migration like the following:
 
 ```php
-Schema::table('model_name', function (Blueprint $table) {
-    $table->type('name', 'foo', 'bar')->modifier('quz')->thing();
+Schema::create('posts', function (Blueprint $table) {
+    $table->integer('claps', true, true)->index();
 });
 ```
 
-> If you have a package that adds custom columns types, like `$table->custom('foo')`, no problem, columns types will be pushed at their are.
+> If you have a package that adds custom columns types, like `$table->custom('foo')`, no problem, columns types will be pushed as the method is.
 
 #### Columns with no values
 
-If a column key has no value, a method with no arguments will be pushed.
+Columns keys with null values will transform into method names with no arguments. This is used for timestamps, soft-deletes and other short-hands from the [Blueprint](https://laravel.com/docs/7.x/migrations#columns).
 
 ```yaml
   timestampsTz: ~
@@ -236,7 +301,7 @@ If a column key has no value, a method with no arguments will be pushed.
 The above will create:
 
 ```php
-Schema::table('model_name', function (Blueprint $table) {
+Schema::create('model_name', function (Blueprint $table) {
     $table->timestampsTz();
     $table->rememberToken();
 });
@@ -244,7 +309,7 @@ Schema::table('model_name', function (Blueprint $table) {
 
 ### Soft Deletes
 
-To make a model soft-deletable, just issue the `softDeletes` or `softDeletesTz` into the columns list. Larakick will automatically detect and use the `SoftDeletes` trait.
+To make a model soft-deletable, just issue the `softDeletes` or `softDeletesTz` into the columns list. Larakick will automatically detect and use the `SoftDeletes` trait for the Model.
 
 ```yaml
 Model:
@@ -300,23 +365,19 @@ To make relations, issue the name of the relation followed by a collection of th
         relation: hasMany:Comment
 ```
 
-If you don't issue the `column` key, Larakick will guess the column type based on the relation primary key if issued, and append the name of primary key as `_id`. If no primary key is set, it will be the default.
+> Columns are needed for relations like [`belongsTo`](https://laravel.com/docs/7.x/eloquent-relationships#one-to-one) and [`morphTo`](https://laravel.com/docs/7.x/eloquent-relationships#one-to-one-polymorphic-relations). If these aren't issued, Larakick will guess the column type based on the relation primary key if issued, and append the name of primary key as `_id`. If no primary key is set, it will be the default.
 
 For example, the `author` relation of the `Comment` model will create a Model with the `author()` relation with a column name of `author_id`:
 
 ```php
-Schema::table('comments', function (Blueprint $table) {
+Schema::create('users', function (Blueprint $table) {
+    // ...
+});
+
+Schema::create('comments', function (Blueprint $table) {
     $table->id();
     $table->unsignedBigInteger('author_id');
 });
-
-class Comment extends Model
-{
-    public function author()
-    {
-        return $this->belongsTo(User::class);
-    }
-}
 
 class User extends Model
 {
@@ -325,55 +386,62 @@ class User extends Model
         return $this->hasMany(Comment::class);
     }
 }
+
+class Comment extends Model
+{
+    public function author()
+    {
+        return $this->belongsTo(User::class);
+    }
+}
 ```
 
 Alternatively, you can change the default column to create, and add a foreign constraint for some reason.
 
 ```yaml
-  Post:
-    columns:
-      id: ~
-      author:
-        column: author_id
-        relation: belongsTo:User,id withDefault
-        foreign: User onDelete:cascade
+Post:
+  columns:
+    id: ~
+    author:
+      column: author_id
+      relation: belongsTo:User,id withDefault
+      foreign: User onDelete:cascade
+      # foreign: author_id references:id on:users onDelete:cascade
 ```
 
 This will be reflected on the migration:
 
 ```php
-Schema::table('posts', function (Blueprint $table) {
-    // ...
-    $table->foreign('author_id')
-        ->references('id')
-        ->on('users')
-        ->onDelete('cascade');
+Schema::create('posts', function (Blueprint $table) {
+    $table->id();
+
+    $table->unsignedBigInteger('author_id');
+    $table->foreign('author_id')->references('id')->on('users')->onDelete('cascade');
 });
 ```
 
-For Morph relations, you can just simply set it as `morphsTo`.  
+For Morph relations, you can just simply set it as `morphsTo`. If you don't add the column name to the `morphsTo` relation, it will be inferred in from the relation name.
 
 ```yaml
   Image:
     columns:
       id: ~
       imageable:
-        nullable: false
-        relation: morphsTo:imageable
+        relation: morphsTo
 
   Post:
     columns:
       id: ~
-      image:
-        relation: morphOne:Image,imageable
+      cover:
+        relation: morphOne:Image
 ```
 
 This will create a migration and model like the following:
 
 ```php
-Schema::table('images', function (Blueprint $table) {
+Schema::create('images', function (Blueprint $table) {
     $table->id();
-    $table->morphs('imageable');
+    $table->nullableMorphs('imageable');
 });
 
 class Image extends Model
@@ -386,18 +454,28 @@ class Image extends Model
 
 class Post extends Model
 {
-    public function image()
+    public function cover()
     {
         return $this->morphOne(Image::class, 'imageable');
     }
 }
 ```
 
+You can change the type of the polymorphic column using the `type` and using `morphs`, `nullableMorphs`,  `uuidMorphs`, `nullableUuidMorphs`. You can pass along the index name after a colon:
+
+```yaml
+columns:
+  id: ~
+  imageable:
+    type: nullableUuidMorphs:imageable_type_id_index
+    relation: morphsTo
+```
+
 ### Primary Key
 
-By default, if there is no `id` or `incrementing` column defined, is understood the model has no primary key, so these will be disabled for the model.
+By default, if there is no `id` or `incrementing` column defined, is understood the model has no primary key, so it will be disabled for the model. This happens automatically with [pivot models](#pivot-models). It's always recommended to have a primary key, but you're covered if you have the rare case to no include one in your table.
 
-To set a primary key from other column, you can override the primary key using the `primary` key. 
+To set a primary key for other column, even if there is already an `id` or `incrementing`, you can override the primary key using the `primary` key. 
 
 ```yaml
 Podcast:
@@ -415,7 +493,7 @@ Podcast:
 The above will create a migration like this:
 
 ```php
-Schema::table('podcasts', function (Blueprint $table) {
+Schema::create('podcasts', function (Blueprint $table) {
     $table->string('slug');
     // ...
 
@@ -430,11 +508,13 @@ class Podcast extends Model
 {
     protected $primary = 'slug';
     protected $keyType = 'string';
-    protected $incrementing = false
+    protected $incrementing = false;
     
     // ...
 }
 ```
+
+> Eloquent ORM doesn't support Primary keys made from multiple columns (also called "Composite Primary").
 
 ### Fillable
 
@@ -458,23 +538,24 @@ The above will generate a Model like this:
 class Podcast extends Model
 {
     protected $fillable = [
-      'name', 'email',
+        'name',
+        'email',
     ];
     
     // ...
 }
-```
+``` 
 
 ### Timestamps
 
-By default, all models have a timestamp for `created_at` and `update_at`. If a model doesn't includes either `timestamps` or `timestampTz`, timestamps will be disabled.
+By default, all models have a timestamp for `created_at` and `update_at`. If a model doesn't includes either `timestamps` or `timestampTz` in the columns, timestamps will be disabled.
 
-You can change the default columns using the `timestamps` key.
+You can change the default columns using the `timestamps` key. For example, you can disable the default timestamps and only add one to register the creation date. 
 
 ```yaml
 Podcast:
   columns:
-    ...
+    # ...
     creation_date: timestamp
     
   timestamps:
@@ -494,7 +575,7 @@ class Podcast extends Model
 
 ### Policies
 
-Policies are Gates logic revolving CRUD operations over a Model. For your sanity, [authorization is handled separately](AUTHORIZATION.md).
+Policies (CRUD authorization over a Model) are [handled separately in the Authorization Policies](AUTHORIZATION.md#policies) for your sanity.
 
 ## Pivot Models
 
@@ -533,17 +614,17 @@ The migrations and subsequent Models will be as follows:
 ```php
 <?php
 
-Schema::table('users', function (Blueprint $table) {
+Schema::create('users', function (Blueprint $table) {
     $table->id();
     $table->string('name');
 });
 
-Schema::table('roles', function (Blueprint $table) {
+Schema::create('roles', function (Blueprint $table) {
     $table->id();
     $table->string('name');
 });
 
-Schema::table('role_user', function (Blueprint $table) {
+Schema::create('role_user', function (Blueprint $table) {
     $table->bigUnsignedInteger('user_id');
     $table->bigUnsignedInteger('role_id');
     $table->timestamps();
@@ -585,6 +666,8 @@ class RoleUser extends Pivot
 }
 ``` 
 
+When creating [Pivot tables](https://laravel.com/docs/7.x/eloquent-relationships#defining-custom-intermediate-table-models), soft-deleted, primary keys and timestamps are automatically disabled. You can re-enable them using the [`primary`](#primary-key) and [`timestamps`](#timestamps) keys, but soft-deleted are bypassed.
+
 ## Factories
 
 Factories for Models are created automatically. Larakick will try to guess the `Faker` values for each property, otherwise it will tell you what Factories needs "attention" so you can input the corresponding random values.
@@ -608,10 +691,16 @@ $factory->define(\App\Podcast::class, function (Faker $faker) {
 });
 ```
 
+To disable creating factories, issue the `factory` key with the `false` value:
+
+```yaml
+Podcast:
+  factory: false
+```
+
 ### States
 
-Sometimes you may want to add states to the model factories for convenient and simple state management.
-
+Sometimes you may want to add states to the model factories for convenient and simple state management. Simply add the `states` key in the Model and put the attributes along the raw PHP code as value.
 
 ```yaml
 Podcast:
@@ -619,32 +708,28 @@ Podcast:
     # ...
   states:
     published:
-      published_at: now(),
+      published_at: $faker->date(),
 ```
 
 ```php
 $factory->state(\App\Podcast::class, 'published', function(Faker $faker) {
     return [
-        'published_at' => now()
+        'published_at' => $faker->date(),
     ];
 });
 ```
 
 ## Seeders
 
-Seeders are conveniently created for you. By default, a seeder for a model will be created for the default `perPage` key of the Model, which is 15, but can be overridden.
+Seeders are conveniently created for you. By default, a seeder for a model will be created for the default `perPage` key of the Model, which is 15.
 
 If you want to change the number of records for the seeder, you can specify the `seed` key with the number of records to persist.
 
 ```yaml
-namespace: App\Models
-
-models:
-  Podcast:
-    # ...
-    perPage: 20
-
-    seed: 10
+Podcast:
+  # ...
+  perPage: 20
+  seed: 10
 ```
 
 ```php
@@ -669,11 +754,20 @@ class PodcastsTableSeeder extends Seeder
 
 > While the database seeders will be created, you will have to manually add them to the `run()` method of your `database/seeds/DatabaseSeeder.php`. This is because the application won't know the proper order of the seeders.
 
+If you set `seed` to `false`, no seeder will be created.
+
+```yaml
+Podcast:
+  # ...
+  perPage: 20
+  seed: false
+```
+
 ## JSON Resources
 
 You can push [JSON Resources](https://laravel.com/docs/7.x/eloquent-resources) from the model YML file directly. 
 
-By default, these are not created, but you can enable them using the `jsonResource` key. Once you set it to `true`, a JSON Resource will be created in `App\Http\Resources`.
+By default, these are not created, but you can enable them using the `json` key. Once you set it to `true`, a JSON Resource will be created in `App\Http\Resources` and appended the `JsonResource` name.
 
 
 ```yaml
@@ -683,11 +777,11 @@ Podcast:
     name: string
     length: int
     timestamps: ~
-  resource: true
+  json: true
 ```
 
 ```php
-class Podcast extends JsonResource
+class PodcastJsonResource extends JsonResource
 {
     public function toArray($request)
     {
@@ -703,3 +797,77 @@ class Podcast extends JsonResource
 ```
 
 The JSON Resource is created using the Model properties in the returned array.
+
+## Migrations
+
+Migrations are not models, but just a quick way to add migrations that are **not** tied to a Model. For example, the `failed_jobs` tables.
+
+```yaml
+migrations:
+  failed_jobs:
+    id: ~
+    connection: text
+    queue: text
+    payload: longText
+    exception: longText
+    failed_at: timestamp useCurrent
+```
+
+The migrations are defined using the table name as key, and a list of [columns](#columns). These are passed as-it-is to the migration class.
+
+Following the above example, this will generate the following:
+
+```php
+Schema::create('failed_jobs', function (Blueprint $table) {
+    $table->id();
+    $table->text('connection');
+    $table->text('queue');
+    $table->longText('payload');
+    $table->longText('exception');
+    $table->timestamp('failed_at')->useCurrent();
+});
+```
+
+> Factories and Seeders are not created for migrations. You must do that manually for each of them. 
+
+## Repositories
+
+Repositories are a way to intercede between the Models (which are a record abstraction for the database) and the controller themselves, by filtering appropriately the model operations.
+
+You may want to use repositories if you need custom queries depending, for example, retrieving a model based on the user authenticated, while will limit the scope of them. It's just an idea.
+
+```yaml
+model:
+   Post:
+     repository: true
+```
+
+## Scopes
+
+```yaml
+model:
+  Post:
+    scopes:
+      Unpublished:
+        apply: where:publised_at,null
+        enabled: false
+```
+
+```yaml
+model:
+  Post:
+    scopes:
+      Unpublished: ~
+```
+
+## Eloquent Events
+
+```yaml
+model:
+  Post:
+    events:
+      created: PostCreated
+      deleted: PostDeleted
+```
+
+`App\Events\Eloquent\Post\PostCreated`

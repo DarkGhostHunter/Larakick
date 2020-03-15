@@ -1,0 +1,59 @@
+namespace: App\Http\Controllers
+
+controllers:
+
+  PostController:
+    middleware:
+      - auth:web except:show,index
+    actions:
+      index:
+        queries:
+          - posts: Post paginate
+        view: post.index with:posts
+      create:
+        view: post.create
+      store:
+        validate:
+            - title: required|string
+            - body: required|string
+        save: post
+        notify: PostPublishedNotification to:post.author with:post
+        fire: PostCreated with:post
+        flash: post.title.created with:post.title
+        redirect: post.show,post
+      show:
+        models: Post:uuid
+        view: post.show with:post
+      update:
+        models: Post:uuid
+        validate:
+          - title: required|string
+          - body: required|string
+        save:
+          post:
+            - published_at: "$request->filled('publish') ? now() : null"
+        redirect: back
+      delete:
+        models: Post:uuid
+        delete: post
+        flash: post.title.deleted with:post.title
+        redirect: post.index
+
+  UserController:
+    middleware:
+      - auth
+    actions:
+      index:
+        queries:
+          - users: User withCount:posts.comments paginate
+        view: user.index with:users
+      show:
+        models: Post:uuid
+        view: post.show with:post
+
+  ProfileController:
+    middleware:
+      - auth
+    actions:
+      show:
+        view: profile.show with:authenticated

@@ -28,51 +28,26 @@ composer require darkghosthunter/larakick --dev
 	
 ## Usage
 
-First, publish the base YAML file. This command will put sample `kickoff/models.yml` and `kickoff/http.yml` file in your project root that will point other files.
+First, publish the sample YAML files, `larakick/models.yml` and `larakick/http.yml`, in your project root.
 
-    php artisan kickoff:create
+    php artisan larakick:sample
 
 Once you edit your YAML files, kick off the assistant with this artisan command.
 
-    php artisan kickoff:start
+    php artisan larakick:scaffold
 
-If you edit your YAML files, changes won't be automatically reflected in your project. To update your project, you can use again `kickoff:start`
+### Safety first
 
-If you have [history](#history) enabled, you can rollback any changes to the previous state, including your YAML files.
+Larakick will automatically register each file created and edited, and save a copy in the latter case, so you can always update your project scaffold files safely and push the changes using `larakick:scaffold`.
 
-    php artisan kickoff:undo
-    
-The above accepts rolling back a number of times using `--times=X` and going back to the first state using `--times=initial`.
-
-> When starting again from a rollback, subsequent rollbacks are deleted. Think it as using "undo".
-
-## Configuration
-
-```php
-<?php
-return [
-    'history' => false,
-    'max' => 10,
-    'path' => storage_path('larakick')
-];
-```
-
-### History
-
-Larakick can save a copy of your `kickoff`, `app`, `database` and `routes` directories in your storage folder before making changes. It's disabled by default, you can enable it by setting it to `true`.
-
-### Maximum rollbacks
-
-To avoid making the history uncontrollably bigger, you can set a maximum set of rollbacks. 
-
-> This won't delete the initial state of your application, just before the first Larakick scaffold.
+You can find it in your application default storage path under the `larakick/previous` directory. 
 
 ## Generating your app
 
 The whole documentation is on these files, since these covers a lot more than a simple README:
 
 * [Models](wiki/MODELS.md): migrations, factories, seeders and JSON resources.
-* [HTTP](wiki/HTTP.md): Controllers, routes, and internal logic (queries, events, jobs, notifications, validation requests, etc.)
+* [HTTP](wiki/HTTP.md): Controllers, middlewares, routes, and internal logic (queries, events, jobs, notifications, validation requests, etc.)
 * [Authorization](wiki/AUTHORIZATION.md): Gates, policies, Form Requests with validation and authorization.
 
 ## License

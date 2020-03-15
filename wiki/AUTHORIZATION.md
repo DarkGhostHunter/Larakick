@@ -2,6 +2,8 @@
 
 Authorization may be a pain in the ass to manage, but Larakick makes it a breeze, since it follows the same Gate and Policies logic from Laravel in a convenient YAML file where you can see all authorization logic in a single glance.
 
+Authorization is optional, but you can add your own in the `larakick/auth.yml` file.
+
 ```yaml
 gates:
   AdminGate:

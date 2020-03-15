@@ -2,23 +2,45 @@
 
 Larakick conveniently generates controllers for you, along with almost everything you need to make them work, including routes. You only have to point out your controllers, what you want them to do, and that's it.
 
+Controllers in Larakick are defined in `larakick/http.yml`. Creating a controller will make the controller class along their tests. You don't have to do nothing.
+
 ```yaml
 namespace: App\Http\Controllers
 
-controllers:
+middleware:
+  json:
+    name: SaveBrowserFingerprint
+  stats:
+    name: SaveRequestStats
+    terminable: true
 
+controllers:
   PostController:
     middleware:
       - auth
+      - json
     actions:
       index:
         queries:
-          - posts: Post.all
+          - posts: Post all
         response: view:post.index with:posts
       show:
         models:
           post: Post:id
-          view: post.show with:post
+        view: post.show with:post
+      create:
+        view: post.create
+      store:
+        validate:
+          - title: required|string
+          - body: required|string
+        save: post:validated
+        notify: PostPublishedNotification to:post.author with:post
+        dispatch: RefreshHomepage with:post
+        fire: PostCreated with:post.title
+        flash: post.title with:post.title
+        custom: "alert()->lang('post.created', ['post' => $post->title])->success()"
+        redirect: post.show,post
       update:
         authorize: ~
         models: Post:id
@@ -27,26 +49,20 @@ controllers:
           - body: required|string
         save: post
         custom: 
-          - alert()->lang('post.updated', ['post' => $post->title])->success()
+          - "alert()->lang('post.updated', ['post' => $post->title])->success()"
         redirect: back
-      store:
-        validate:
-          - title: required|string
-          - body: required|string
-        save: post:validated
-        notify: PostPublishedNotification to:post.author with:post
-        dispatch: RefreshHomepage with:post
-        fire: PostCreated with:post
-        flash: post.title with:post
-        custom: alert()->lang('post.created', ['post' => $post->title])->success()
-        redirect: post.show,post
+      delete:
+        models: Post:id
+        delete: post
+        flash: post.title.deleted with:post.title
+        redirect: post.index
 ```
 
 > Controllers in Larakick are revolved around Models. If you need to create custom logic, you're better creating a custom controller yourself.
 
 We are gonna go for each key so you can further customize what the HTTP Controller does, but first, let's start with the simplest controllers.
 
-## Namespaces
+## Namespace
 
 All namespaces for your project controllers are based on the `App\Http\Controllers`, which is the default in fresh Laravel installation.
 
@@ -67,6 +83,35 @@ For example, the above will create two controllers, following PSR-4 convention:
 
 * `App\Http\Controllers\Admin\User\PostController`
 * `App\Http\Controllers\Admin\User\CommentController`
+
+## Middleware
+
+Sometimes you want to create your own middleware classes. Instead of creating each one from scratch and adding the manually into your HTTP Kernel, you can just issue your middleware here. These will be appended to the middleware list of your application.
+
+```yaml
+middleware:
+  json:
+    name: SaveBrowserFingerprint
+  stats:
+    name: SaveRequestStats
+    terminable: true
+``` 
+
+The above will create the `App\Http\Middleware\SaveBrowserFingerprint` and `App\Http\Middleware\SaveRequestStats`, with a [`terminate` method](https://laravel.com/docs/7.x/middleware#terminable-middleware). 
+
+Your Kernel will be modified to add the middleware to the `$routeMiddleware` list:
+
+```php
+protected $routeMiddleware = [
+    // ...
+    'json' =>  \App\Http\Middleware\SaveBrowserFingerprint::class,
+    'stats' =>  \App\Http\Middleware\SaveRequestStats::class,
+];
+```
+
+> If the keys of the middleware are already used in the list by other middleware or package, you will receive an error. 
+
+These can be referenced by your controller in the [`middleware` key](#controller-middleware).
 
 ## Actions
 
@@ -93,15 +138,59 @@ class PostController extends Controller
 }
 ```
 
-The following keys accept a single value or a list:
+#### List
 
-* [`queries`](#Queries)
-* [`models`](#Models)
-* [`notify`](#Notify)
-* [`dispatch`](#Dispatch)
-* [`fire`](#Fire)
-* [`flash`](#Flash)
-* [`custom`](#Custom)
+Most of actions accepts a list of items using key-value or plain arrays:
+
+```yaml
+show:
+  models:
+    post: Post:uuid
+    user: User
+  dispatch:
+    - RefreshHomepage with:post
+    - NotifyEditors with:post
+```
+
+The list of things you can add to a controller definition are these:
+
+| Name | Accepts list | Type |
+| --- | --- | --- |
+| `route` | ✖ | |
+| `models` | ✔ | Key-value, values
+| `authorize` | ✖ |  
+| `validate` | ✔ | Key-value
+| `queries` | ✔ | Key-value, values
+| `save` | ✖ | 
+| `delete` | ✔ | 
+| `fire` | ✔ | Values
+| `dispatch` | ✔ | Values
+| `notify` | ✔ | Values
+| `flash` | ✔ | Key-value, values
+| `custom` | ✔ | Values
+| `view` | ✖ | 
+| `redirect` | ✖ | 
+
+### Order
+
+You can create your controller with actions in any order given, but Larakick will execute them in this order:
+
+| Order | Name |
+| --- | --- |
+| 1 | `route` |
+| 2 | `models` |
+| 3 | `authorize` |
+| 4 | `validate` |
+| 5 | `queries` |
+| 6 | `save` |
+| 7 | `delete` |
+| 8 | `fire` |
+| 9 | `dispatch` |
+| 10 | `notify` |
+| 11 | `flash` |
+| 12 | `custom` |
+| 13 | `redirect` |
+| 14 | `view` |
 
 ### Models
 
@@ -353,9 +442,41 @@ save: post
 ```
 
 ```php
-public function (StorePostRequest $request, Post $post)
+public function update(Request $request, Post $post)
 {
-    $post->fill($request->validated())->save();
+    $validated = $request->validated([
+        // ...
+    ]);
+
+    $post->fill($validated)->save();
+
+    // ...
+}
+```
+
+Larakick will automatically get the validated input from the Request or [Form Request](#form-requests).
+
+Alternatively, you can merge (or replace) the values to save by issuing a key-value list. This is **mandatory** if you plan to save something into the model name and no validation was set previously. 
+
+The values are passed as plain PHP.
+
+```yaml
+publish:
+  models: 
+    post: Post
+  save: 
+    post:
+      - published_at: now()
+      - slug: \Str::slug($post->title)
+```
+
+```php
+public function publish(Post $post)
+{
+    $post->published_at = now();
+    $post->slug = \Str::slug($post->title);
+    
+    $post->save();
 
     // ...
 }
@@ -378,6 +499,8 @@ public function (StorePostRequest $request, Post $post)
 }
 ```
 
+The notification is automatically created in `App\Notifications`, along the parameters in the constructor.
+
 ### Dispatch
 
 Creates and dispatches a given Job. By default, the Job created implements the `ShouldQueue` contract. 
@@ -395,6 +518,8 @@ public function (StorePostRequest $request, Post $post)
 }
 ```
 
+The Job is created in the `App\Jobs` directory, along with any parameter in its constructor.
+
 ### Fire
 
 Creates and fires an Event.
@@ -411,6 +536,8 @@ public function (StorePostRequest $request, Post $post)
     Event::dispatch(new PostCreated($post->name));
 }
 ```
+
+The Job is created in the `App\Events` directory, along with any parameter in its constructor.
 
 ### Flash
 
@@ -433,8 +560,10 @@ public function (StorePostRequest $request, Post $post)
 
 Executes the given list of raw PHP code. Useful when you're using third party packages.
 
+The code must set inside double quotes or single quotes. It is pushed as-it-is to the controller. 
+
 ```yaml
-custom: alert()->lang('post.created', ['post' => $post->title])->success()
+custom: "alert()->lang('post.created', ['post' => $post->title])->success()"
 ```
 
 ```php
@@ -451,7 +580,7 @@ public function (StorePostRequest $request, Post $post)
 Returns a view using the given parameters.
 
 ```yaml
-view: post.show with:post
+view: post.show post
 ```
 
 ```php
@@ -463,12 +592,22 @@ public function (Post $post)
 }
 ```
 
+You can change the name of the variable to add to the view using `view: post.show foo:bar`. The latter will return this:
+
+```php
+return view('post.show', ['foo' => $bar]);
+```  
+
+An empty Blade view will be automatically created. In this case, the view will be in `resources/views/post/show.blade.php`.
+
+> I totally recommended to have all your web views in a folder like `resources/views/web/*` if you plan to have many of them.
+
 ### Redirect
 
 Returns a redirect response back, to a given action or named route.
 
 ```yaml
-redirect: route:post.show with:post
+redirect: route:post.show,post
 ```
 
 ```php
@@ -476,14 +615,14 @@ public function (Post $post)
 {
     // ...
 
-    return redirect()->route('post.show')->with('post', $post);
+    return redirect()->route('post.show', $post);
 }
 ```
 
 You can redirect to a given action name using _Class@action_ notation.
 
 ```yaml
-redirect: action:PostController@show with:post
+redirect: action:PostController@show,post post,post.title 
 ```
 
 ```php
@@ -491,14 +630,14 @@ public function (Post $post)
 {
     // ...
 
-    return redirect()->action('PostController@show')->with('post', $post);
+    return redirect()->action('PostController@show', $post)->with('post', $post->title);
 }
 ```
 
-Finally, you can use `back` to redirect back.
+Finally, you can use `back` to redirect back. You can chain it with `with` to flash something into the session.
 
 ```yaml
-redirect: back with:post
+redirect: back post,post.title
 ```
 
 ```php
@@ -506,11 +645,26 @@ public function (Post $post)
 {
     // ...
 
-    return back()->with('post', $post);
+    return back()->with('post', $post->title);
 }
 ```
 
-### Middleware
+#### Flashing data into the session
+
+When issuing redirect, you can automatically flash session data by just appending the key name and value:
+
+```yaml
+redirect: back foo,bar.quz
+```
+
+```php
+public function (Post $post)
+{
+   return back()->with('foo', $bar->quz);
+}
+```
+
+## Controller Middleware
 
 Middleware can be set separately in-controller using the `middleware` key.
 
@@ -539,6 +693,8 @@ class PostController extends Controller
     // ...
 }
 ```
+
+> The key doesn't care if the middleware exists or not.
 
 ## Resource controllers
 
@@ -571,9 +727,81 @@ UserPostController:
   resource:
     models: User Post
     only: index show
+
   actions:
     index:
       queries:
         - posts: User.posts.withTrashed.paginate
       view: user.post.index with:posts
+```
+
+## JSON Resources
+
+If you want a controller to automatically generate [JSON Resource actions from a Model](MODELS.md#json-resources) , just issue the JSON Resource name as resource value.
+
+```yaml
+PodcastController:
+  resource: PodcastJsonResource
+```
+
+Larakick will conveniently create a Controller with all CRUD operations based on the JSON Resource, and you will be able to create only or except certain actions.
+
+```php
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Podcast;
+use Illuminate\Http\Request;
+use App\Http\Resources\PodcastJsonResource;
+
+class PodcastController extends Controller
+{
+    public function index()
+    {
+        return new PodcastJsonResource(Podcast::paginate());
+    }
+
+    public function show(Podcast $podcast)
+    {
+        return new PodcastJsonResource($podcast);
+    }
+
+    public function update(Request $request, Podcast $podcast)
+    {
+        $validated = $request->validate([
+            // ...
+        ]);
+
+        return new PodcastJsonResource($podcast->fill($validated)->tap()->save());
+    }
+
+    public function store(Request $request)
+    {
+        $validated = $request->validate([
+            // ...
+        ]);
+
+        return new PodcastJsonResource(Podcast::create($validated));
+    }
+
+    public function delete(Podcast $podcast)
+    {
+        $podcast->delete();
+
+        return new PodcastJsonResource($podcast);
+    }
+}
+```
+
+Since you may not want all the CRUD operations, you create CRUD methods for only certain actions, or create all except one.
+
+```yaml
+PodcastController:
+  resource: PodcastJsonResource
+  only: index delete
+
+UserController:
+  resource: UserJsonResource
+  except: delete
 ```
