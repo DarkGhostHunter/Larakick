@@ -2,6 +2,10 @@ namespace: App\Http\Controllers
 
 controllers:
 
+  HomeController:
+    invoke:
+      view: welcome
+
   PostController:
     middleware:
       - auth:web except:show,index
@@ -56,4 +60,4 @@ controllers:
       - auth
     actions:
       show:
-        view: profile.show with:authenticated
+        view: profile.show with:auth

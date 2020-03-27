@@ -10,7 +10,7 @@ gates:
     - change-email
     - change-username
   UserGate:
-    - publish-post
+    - publish-posts
     - pay-bill
     - close-account
     - reactivate-account
@@ -23,7 +23,7 @@ policies:
     model: Post
   PodcastPolicy:
     actions:
-      - create
+      - store
       - update
 
 forms:
@@ -32,7 +32,7 @@ forms:
       - name: required|string
       - body: required|string
     authorization:
-      - UserGate:publish-post
+      - UserGate: publish-posts
 ```
 
 ## Gates
@@ -63,17 +63,17 @@ class AnalyticsGate
 {
     public function changeEmail($user)
     {
-        // ...
+        return true;
     }
 
     public function changeUsername($user)
     {
-        // ...
+        return true;
     }
 }
 ```
 
-As you can read, you can customize the name of the gate and the method it references:
+As you read, you can customize the name of the gate and the method it references:
 
 ```yaml
 AnalyticsGate:
@@ -88,12 +88,12 @@ class AdminGate
 {
     public function showAnalytics($user)
     {
-        // ...
+        return true;
     }
 }
 ```
 
-Gates are automatically registered into your `App\AuthServiceProvider` by adding a [`RegisterGates` trait](../src/Generation/Gates/RegistersGates.php), and creating a custom method, where each Gate is transformed into `gate:action-name` notation automatically:
+Gates are automatically registered into your `App\AuthServiceProvider` by adding a [`RegisterGates` trait](../src/Generation/Gates/RegistersGates.php), and creating a custom method, where each Gate is transformed into `gate:action-name` notation automatically to avoid duplicated keys.
 
 ```php
 public function gates()
@@ -103,7 +103,7 @@ public function gates()
         'admin:change-username'     => 'App\Gates\AdminGate@changeUsername',
 
         'user:pay-bill'             => 'App\Gates\UserGate@payBill',
-        'user:publish-post'         => 'App\Gates\UserGate@publishPost',
+        'user:publish-posts'        => 'App\Gates\UserGate@publishPosts',
         'user:close-account'        => 'App\Gates\UserGate@closeAccount',
         'user:reactivate-account'   => 'App\Gates\UserGate@reactivateAccount',
         
@@ -139,17 +139,66 @@ If you want to specify custom policies for the Model, you can issue a custom lis
 policies:
   PodcastPolicy:
     actions:
-      - create
+      - viewAny
       - update
       - publish
       - unpublish
 ```
 
+> If you use `index` as an action name, it will be automatically mapped to `viewAny`.
+
 ### Automatic authorization in Controller Actions
 
-Models that have a policy will be [automatically referenced in the controllers action](HTTP.md#authorize) that use the Model and have the same method registered in the policy, which are most CRUD operations.
+Models that have a Policy will be [automatically referenced in the controllers action](HTTP.md#authorize) that use the Model and have the **same method name** registered in the policy.
 
-You can [disable this setting `authorize` to `false`](HTTP.md#authorize).
+```yaml
+# http.yml
+PostController:
+    actions:
+      create:
+        view: post.create
+      publish:
+        models: Post
+        save:
+          post:
+            - published_at: "now()" 
+        view: post.show post
+
+# auth.yml
+policies:
+  PostPolicy:
+    actions:
+      - create
+      - publish
+```
+
+Following the example above, notice we didn't add the `authorize` key in the controller. We have a `PostController`, with a `PostPolicy` that contains the `create` and `publish` actions. Larakick will automatically put the Policy authorization layer on both actions.
+
+```php
+<?php
+
+class PostController extends Controller
+{
+    public function create()
+    {
+        $this->authorize('create');
+
+        return view('post.create');
+    }
+
+    public function publish(Post $post)
+    {
+        $this->authorize('publish', $post);
+
+        $post->published_at = now();
+        $post->save();
+
+        return view('post.show')->with('post', $post);
+    }
+}
+```
+
+You can [disable this by setting `authorize` to `false`](HTTP.md#authorize).
 
 ## Form Requests
 
@@ -183,6 +232,7 @@ class StorePostRequest extends FormRequest
 In your controllers, just reference it [under the `validate` key](HTTP.md#form-requests):
 
 ```yaml
+# http.yml
 AdminPostController:
   actions:
     store:
@@ -191,9 +241,9 @@ AdminPostController:
 
 ### Form Authorization
 
-If you also want to authorize the request, you can add the `authorization` key to the form.
+If you also want to authorize the request with a Gate, you can add the `authorization` key to the form.
 
-To make authorization coding faster, you can simply issue the Gate name using _Gate:action-name_ notation, or _Class@actionName_ notation.
+To make authorization coding faster, you can simply issue the Gate name using _Gate:action-name_ notation.
 
 ```yaml
 forms:
@@ -201,19 +251,23 @@ forms:
     validate:
       - name: required|string
       - body: required|string
-    authorize: user:publish-post
+    authorize: UserGate:publish-posts
+  StoreCommentRequest:
+    validate:
+      - body: required|string
+    authorize: GuestGate:comment
 ```
 
-> It's recommended to [use Policies](#policies) when dealing with authorization over a Model.
+> Beware of Form Requests with [`authorization`](AUTH.md#form-authorization), ensure you don't authorize the same action two times with the same logic, specially when using [Gates](AUTH.md#gates).
 
 The above will create the following Form Request:
 
 ```php
-class PostStoreRequest extends FormRequest
+class StorePostRequest extends FormRequest
 {
     public function authorize()
     {
-        return $this->user()->can('user:publish-post');
+        return $this->user()->can('user:publish-posts');
     }   
 
     public function rules()
@@ -226,4 +280,5 @@ class PostStoreRequest extends FormRequest
 }
 ```
 
-> Beware of Form Requests with [`authorization`](AUTHORIZATION.md#form-authorization), ensure you don't authorize the same action two times with the same logic, specially when using [Gates](AUTHORIZATION.md#gates).
+> If you need to authorize an action over a Model, it's recommended to [use Policies](#policies). Trying to do run a Policy authorization in the `authorize()` will need to recover the model manually from the database.
+> When using Route Model Binding, which is **resolved outside the Form Request**, it means you may query the same record two times without noticing.

@@ -1,0 +1,9 @@
+gates:
+  UserGate:
+    - publish-post
+    - unpublish-post
+    - comment-unpublished-post
+
+policies:
+  PostPolicy: ~
+  CommentPolicy: ~

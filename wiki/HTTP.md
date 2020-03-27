@@ -2,7 +2,7 @@
 
 Larakick conveniently generates controllers for you, along with almost everything you need to make them work, including routes. You only have to point out your controllers, what you want them to do, and that's it.
 
-Controllers in Larakick are defined in `larakick/http.yml`. Creating a controller will make the controller class along their tests. You don't have to do nothing.
+Controllers in Larakick are defined in `larakick/http.yml`. Creating a controller will make the controller class along their tests. You don't have to code everything except the most complex logic for your application. 
 
 ```yaml
 namespace: App\Http\Controllers
@@ -34,7 +34,7 @@ controllers:
         validate:
           - title: required|string
           - body: required|string
-        save: post:validated
+        save: post
         notify: PostPublishedNotification to:post.author with:post
         dispatch: RefreshHomepage with:post
         fire: PostCreated with:post.title
@@ -45,7 +45,6 @@ controllers:
         authorize: ~
         models: Post:id
         validate:
-          - title: required|string
           - body: required|string
         save: post
         custom: 
@@ -138,59 +137,122 @@ class PostController extends Controller
 }
 ```
 
-#### List
+### Invokable Controllers
+
+You can pass directly to an invokable controller by just setting the `invoke` as the only action:
+
+```yaml
+PublishPostController:
+  action:
+    invoke:
+      models: Post
+      save:
+        post:
+          - published_at: "now()"
+      redirect: back
+```
+
+> Larakick will exclusively use the `invoke` and disregard other actions even if these are defined.
+
+#### List and Order
 
 Most of actions accepts a list of items using key-value or plain arrays:
 
 ```yaml
-show:
-  models:
-    post: Post:uuid
-    user: User
-  dispatch:
-    - RefreshHomepage with:post
-    - NotifyEditors with:post
+PublishPostController:
+  action:
+    show:
+      models:
+        post: Post:uuid
+        user: User
+      dispatch:
+        - RefreshHomepage with:post
+        - NotifyEditors with:post
 ```
 
-The list of things you can add to a controller definition are these:
+The list of things you can add to a controller definition is here:
 
-| Name | Accepts list | Type |
-| --- | --- | --- |
-| `route` | ✖ | |
-| `models` | ✔ | Key-value, values
-| `authorize` | ✖ |  
-| `validate` | ✔ | Key-value
-| `queries` | ✔ | Key-value, values
-| `save` | ✖ | 
-| `delete` | ✔ | 
-| `fire` | ✔ | Values
-| `dispatch` | ✔ | Values
-| `notify` | ✔ | Values
-| `flash` | ✔ | Key-value, values
-| `custom` | ✔ | Values
-| `view` | ✖ | 
-| `redirect` | ✖ | 
+| Order | Name | Accepts lists | List type
+| --- | --- | --- | --- |
+| 1 | `route` | ✖ | |
+| 2 | `models` | ✔ | Key-value, values
+| 3 | `authorize` | ✖ |
+| 4 | `validate` | ✔ | Key-value
+| 5 | `queries` | ✔ | Key-value, values
+| 6 | `save` | ✖ |
+| 7 | `delete` | ✔ |
+| 8 | `fire` | ✔ | Values
+| 9 | `dispatch` | ✔ | Values
+| 10 | `notify` | ✔ | Values
+| 11 | `flash` | ✔ | Key-value, values
+| 12 | `custom` | ✔ | Values
+| 13 | `redirect` | ✖ |
+| 14 | `view` | ✖ |
 
-### Order
+As you can see, there is an order. No matter how you input them, Larakick will process each key in the order given.
 
-You can create your controller with actions in any order given, but Larakick will execute them in this order:
+### Route
 
-| Order | Name |
-| --- | --- |
-| 1 | `route` |
-| 2 | `models` |
-| 3 | `authorize` |
-| 4 | `validate` |
-| 5 | `queries` |
-| 6 | `save` |
-| 7 | `delete` |
-| 8 | `fire` |
-| 9 | `dispatch` |
-| 10 | `notify` |
-| 11 | `flash` |
-| 12 | `custom` |
-| 13 | `redirect` |
-| 14 | `view` |
+Each time you create a Controller action, Larakick will try to guess the route it should generate based on the name of the action, so you won't need to issue the route for it.
+
+```yaml
+User\PostController:
+  actions:
+    show:
+      models: Post
+      # ...
+    create:
+      validate:
+        - title: required|string
+        - body: required|string
+      # ...
+
+PublishController:
+  actions:
+    invoke:
+      view: publish.controller
+```
+
+```php
+Route::get('user/post/{post}', 'User\PostController@show')
+    ->name('user.post.show');
+Route::post('user/post', 'User\PostController@create')
+    ->name('user.post.create');
+Route::get('publish', 'PublishController');
+``` 
+
+Alternatively, you can issue the route for the action yourself, and optionally, the name of it.
+
+```yaml
+User\PostController:
+  actions:
+    show:
+      route: get:post-creator/post/{post:slug} post-creator.show
+      models: Post
+```
+
+```php
+Route::get('post-creator/post/{post:slug}', 'User\PostController@show')
+    ->name('post-creator.show');
+```
+
+If you use a custom Model variable, you must define it as you have set it.
+
+```yaml
+User\PostController:
+  actions:
+    show:
+      models: 
+        - publication: Post
+      route: get:post-creator/post/{publication:slug} post-creator.show
+```
+
+```php
+Route::get('post-creator/post/{publication:slug}', 'User\PostController@show')
+    ->name('post-creator.show');
+```
+
+> Currently there is no support for `match` method, which allows to match different verbs.
 
 ### Models
 
@@ -247,65 +309,9 @@ models:
 
 > If you use custom variables, these will be automatically set in the Route name, like `posts/{publication:slug}`.
 
-
-### Route
-
-Each time you create a Controller action, Larakick will try to guess the route it should generate based on the name of the action.
-
-```yaml
-User\PostController:
-  actions:
-    show:
-      models: Post
-      # ...
-    create:
-      validate:
-        - title: required|string
-        - body: required|string
-      # ...
-```
-
-```php
-Route::get('user/post/{post}', 'User\PostController@show')
-    ->name('user.post.show');
-Route::post('user/post', 'User\PostController@create')
-    ->name('user.post.create');
-``` 
-
-Alternatively, you can issue the route for the action yourself, and optionally, the name of it.
-
-```yaml
-User\PostController:
-  actions:
-    show:
-      models: Post
-      route: get:post-creator/post/{post:slug} post-creator.show
-```
-
-```php
-Route::get('post-creator/post/{post:slug}', 'User\PostController@show')
-    ->name('post-creator.show');
-```
-
-If you use a custom Model variable, you must define it as you have set it.
-
-```yaml
-User\PostController:
-  actions:
-    show:
-      models: 
-        - publication: Post
-      route: get:post-creator/post/{publication:slug} post-creator.show
-```
-
-```php
-Route::get('post-creator/post/{publication:slug}', 'User\PostController@show')
-    ->name('post-creator.show');
-```
-
 ### Authorize
 
-To authorize a given action, you can issue the `authorize` key. Larakick will guess the action and model or class name automatically:
+To authorize a given action, you can issue the `authorize` key. Larakick will guess the model automatically:
 
 ```yaml
 update:
@@ -337,14 +343,14 @@ update:
   authorize: update publication
 ```
 
-You can also pass the class name in case there is no record, like when happens with the `create` method. Larakick will always try to guess the Model name from the Controller name.
+You can also pass the Model name [you have set previously](DB.md#models) in case there is no variable, like when happens with the `create` method.
 
 ```yaml
 create:
   authorize: create Post 
 ```
 
-If you have set a [Model Policy](AUTHORIZATION.md#policies) matching the Model and Action names, [authorization will be automatically appended](AUTHORIZATION.md#automatic-authorization-in-controller-actions) even if you don't declare it explicitly, to save you time.
+If you have set a [Model Policy](AUTH.md#policies) matching the Model and Action names, [authorization will be automatically appended](AUTH.md#automatic-authorization-in-controller-actions) even if you don't declare it explicitly, to save you time.
 
 ```yaml
 # authorization.yml
@@ -354,9 +360,11 @@ policies:
       - update
 
 # http.yml
-update:
-  models: Post:id
-  redirect: back 
+PostController:
+  actions:
+    update:
+      models: Post:id
+      redirect: back 
 ```
 
 ```php
@@ -368,7 +376,7 @@ public function update(Post $post)
 }
 ```
 
-To disable any authorization, you can set the `authorize` key to `false`. If the Model has a matching policy, this will not be present in the controller action code. 
+To disable any authorization, you can set the `authorize` key to `false`. If the Model has a matching policy, this will not be present in the controller action code.
 
 ```yaml
 PostController:
@@ -378,11 +386,11 @@ PostController:
       authorize: false
 ```
 
-> Beware of Form Requests with [`authorization`](AUTHORIZATION.md#form-authorization), ensure you don't authorize the same action two times with the same logic, specially when using [Gates](AUTHORIZATION.md#gates).
+> Beware of Form Requests with [`authorization`](AUTH.md#form-authorization), ensure you don't authorize the same action two times with the same logic, specially when using [Gates](AUTH.md#gates).
 
 ### Validate
 
-Creates a Request with validation rules. Validated inputs are available as `$validated`
+Creates a Request with validation rules. Validated inputs are available as `$validated`.
 
 ```yaml
 PostController:
@@ -405,9 +413,11 @@ public function store(Request $request)
 }
 ```
 
+> There is no support to using [`Rule` objects](https://laravel.com/docs/7.x/validation#using-rule-objects). If you need more complex validation, you can edit the validation rules afterwards.
+
 #### Form Requests
 
-If you want to create a [Form Request](https://laravel.com/docs/7.x/validation#form-request-validation) to centralize validation and authorization, set a form in the [Authorization YAML file](AUTHORIZATION.md#form-requests). 
+If you want to create a [Form Request](https://laravel.com/docs/7.x/validation#form-request-validation) to centralize validation and authorization, set a form in the [Authorization YAML file](AUTH.md#form-requests). 
 
 Once the Form Request is set, you can further reference it in other controllers using the its name directly.
 
@@ -418,11 +428,11 @@ AdminPostController:
       validate: StorePostRequest
 ```
 
-> Beware of Form Requests with [`authorization`](AUTHORIZATION.md#form-authorization), ensure you don't authorize the same action two times with the same logic, specially when using [Gates](AUTHORIZATION.md#gates).
+> Beware of Form Requests with [`authorization`](AUTH.md#form-authorization), ensure you don't authorize the same action two times with the same logic, specially when using [Gates](AUTH.md#gates).
 
 ### Queries
 
-Creates retrieval queries and saves them into a variable specified by its key.
+Creates retrieval queries over a Model and saves them into a variable specified by its key.
 
 ```yaml
 queries:
@@ -435,7 +445,7 @@ $posts = Post::with('comments')->paginate();
 
 ### Save
 
-Updates or Create a given Model using the Request validated properties
+Updates or Create a given Model using the Request validated properties.
 
 ```yaml
 save: post
@@ -456,23 +466,25 @@ public function update(Request $request, Post $post)
 
 Larakick will automatically get the validated input from the Request or [Form Request](#form-requests).
 
+> Saving only supports only one model. If you have more than one, you can specify the variable. Trying to save multiple models would mean to have different validated arrays and that's a mess outside scaffolding.
+
 Alternatively, you can merge (or replace) the values to save by issuing a key-value list. This is **mandatory** if you plan to save something into the model name and no validation was set previously. 
 
-The values are passed as plain PHP.
+The values are passed as plain PHP.  
 
 ```yaml
 publish:
-  models: 
-    post: Post
+  models: Post
   save: 
     post:
-      - published_at: now()
-      - slug: \Str::slug($post->title)
+      - published_at: "now()"
+      - slug: "\Str::slug($post->title)"
 ```
 
 ```php
-public function publish(Post $post)
+public function publish(Request $request, Post $post)
 {
+    // ...
     $post->published_at = now();
     $post->slug = \Str::slug($post->title);
     
@@ -481,6 +493,44 @@ public function publish(Post $post)
     // ...
 }
 ```
+
+> PHP lines are meant for only one-liners. If you don't append them with semicolon (`;`), Larakick will do that for you. 
+
+### Delete
+
+Deletes a model.
+
+```yaml
+delete: post
+```
+
+```php
+public function update(Post $post)
+{
+    $post->delete();
+
+    // ...
+}
+```
+
+### Fire
+
+Creates and fires an Event.
+
+```yaml
+fire: PostCreated with:post.name
+```
+
+```php
+public function (StorePostRequest $request, Post $post)
+{
+    // ...
+
+    Event::dispatch(new PostCreated($post->name));
+}
+```
+
+The Job is created in the `App\Events` directory, along with any parameter in its constructor.
 
 ### Notify
 
@@ -520,25 +570,6 @@ public function (StorePostRequest $request, Post $post)
 
 The Job is created in the `App\Jobs` directory, along with any parameter in its constructor.
 
-### Fire
-
-Creates and fires an Event.
-
-```yaml
-fire: PostCreated with:post.name
-```
-
-```php
-public function (StorePostRequest $request, Post $post)
-{
-    // ...
-
-    Event::dispatch(new PostCreated($post->name));
-}
-```
-
-The Job is created in the `App\Events` directory, along with any parameter in its constructor.
-
 ### Flash
 
 Flashes the given key and value into the session.
@@ -575,12 +606,14 @@ public function (StorePostRequest $request, Post $post)
 }
 ```
 
+> PHP lines are meant for only one-liners. If you don't append them with semicolon (`;`), Larakick will do that for you. 
+
 ### View
 
 Returns a view using the given parameters.
 
 ```yaml
-view: post.show post
+view: post.show with:post
 ```
 
 ```php
@@ -588,15 +621,28 @@ public function (Post $post)
 {
     // ...
 
-    return view('post.show', ['post' => $post]);
+    return view('post.show')->with('post', $post);
 }
 ```
 
-You can change the name of the variable to add to the view using `view: post.show foo:bar`. The latter will return this:
+You can change the name of the variable to add to the view using `view: post.show with:foo,bar`. The latter will return this:
 
 ```php
-return view('post.show', ['foo' => $bar]);
-```  
+return view('post.show')->with('foo', $bar);
+```
+
+And also use multiple `with`, which will be transformed as an array:
+
+```yaml
+view: post.show with:post with:author,user
+```
+
+```php
+return view('post.show')->with([
+    'post' => $post,
+    'author' => $user,
+]);
+```
 
 An empty Blade view will be automatically created. In this case, the view will be in `resources/views/post/show.blade.php`.
 
@@ -622,7 +668,7 @@ public function (Post $post)
 You can redirect to a given action name using _Class@action_ notation.
 
 ```yaml
-redirect: action:PostController@show,post post,post.title 
+redirect: action:PostController@show,post
 ```
 
 ```php
@@ -630,14 +676,14 @@ public function (Post $post)
 {
     // ...
 
-    return redirect()->action('PostController@show', $post)->with('post', $post->title);
+    return redirect()->action('PostController@show', $post);
 }
 ```
 
-Finally, you can use `back` to redirect back. You can chain it with `with` to flash something into the session.
+Finally, you can use `back` to redirect back.
 
 ```yaml
-redirect: back post,post.title
+redirect: back
 ```
 
 ```php
@@ -645,22 +691,7 @@ public function (Post $post)
 {
     // ...
 
-    return back()->with('post', $post->title);
-}
-```
-
-#### Flashing data into the session
-
-When issuing redirect, you can automatically flash session data by just appending the key name and value:
-
-```yaml
-redirect: back foo,bar.quz
-```
-
-```php
-public function (Post $post)
-{
-   return back()->with('foo', $bar->quz);
+    return back();
 }
 ```
 
@@ -735,16 +766,30 @@ UserPostController:
       view: user.post.index with:posts
 ```
 
-## JSON Resources
+If you want to use `PATCH`, `POST`, and `DELETE` http verbs for your actions, ensure you set the `verbs` key to `api`, otherwise all HTTP verbs will be received using `GET` and `POST` only.
 
-If you want a controller to automatically generate [JSON Resource actions from a Model](MODELS.md#json-resources) , just issue the JSON Resource name as resource value.
+```yaml
+UserPostController:
+  resource:
+    models: User Post
+    only: index show
+    verbs: api
+```
+
+> The `only` key will take precedence over `except`.
+
+### JSON Resources
+
+If you want a controller to automatically generate [JSON Resource actions from a Model](DB.md#json-resources), just set the `json` key as true.
 
 ```yaml
 PodcastController:
-  resource: PodcastJsonResource
+  resource: 
+    json: true
+    models: Podcast
 ```
 
-Larakick will conveniently create a Controller with all CRUD operations based on the JSON Resource, and you will be able to create only or except certain actions.
+Larakick will conveniently create a Controller with all CRUD operations based on the JSON Resource and models you have set, and you will be able to create only or except certain actions.
 
 ```php
 <?php
@@ -798,10 +843,18 @@ Since you may not want all the CRUD operations, you create CRUD methods for only
 
 ```yaml
 PodcastController:
-  resource: PodcastJsonResource
-  only: index delete
+  resource: 
+    json: true
+    models: User
+    only: index delete
 
 UserController:
-  resource: UserJsonResource
-  except: delete
+  resource: 
+    json: true
+    models: User
+    except: delete
 ```
+
+JSON Resources automatically use `verbs: api`, so you can expect routes using `PATCH`, `POST` and `DELETE`.
+
+> 

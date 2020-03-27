@@ -38,17 +38,23 @@ Once you edit your YAML files, kick off the assistant with this artisan command.
 
 ### Safety first
 
-Larakick will automatically register each file created and edited, and save a copy in the latter case, so you can always update your project scaffold files safely and push the changes using `larakick:scaffold`.
+Larakick will automatically copy your `app`, `routes` and some of your `database` directories as backups every time you scaffold.
 
-You can find it in your application default storage path under the `larakick/previous` directory. 
+You can find it in your application default storage path under the `larakick/backups` directory, and copy them over your project file. 
 
 ## Generating your app
 
 The whole documentation is on these files, since these covers a lot more than a simple README:
 
-* [Models](wiki/MODELS.md): migrations, factories, seeders and JSON resources.
+* [Database](wiki/DB.md): migrations, factories, seeders and JSON resources.
 * [HTTP](wiki/HTTP.md): Controllers, middlewares, routes, and internal logic (queries, events, jobs, notifications, validation requests, etc.)
-* [Authorization](wiki/AUTHORIZATION.md): Gates, policies, Form Requests with validation and authorization.
+* [Authorization](wiki/AUTH.md): Gates, policies, Form Requests with validation and authorization.
+
+Just remember the basics:
+
+* Method chaining is done using spaces: `query: Post whereNotNull:published_at paginate`.
+* Methods receive arguments using `:` colon: `query: whereNotNull:published_at`.
+* And RTFM.
 
 ## License
 

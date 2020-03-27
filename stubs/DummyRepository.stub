@@ -1,0 +1,146 @@
+<?php
+
+namespace DummyNamespace;
+
+use DummyModelNamespace;
+use Illuminate\Support\Str;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Contracts\Routing\UrlRoutable;
+
+class DummyRepository implements UrlRoutable
+{
+    /**
+     * DummyModel instance.
+     *
+     * @var \DummyModelNamespace
+     */
+    protected $model;
+
+    /**
+     * Creates a new DummyRepository instance.
+     *
+     * @param  \DummyModelNamespace  $model
+     */
+    public function __construct(Model $model)
+    {
+        $this->model = $model;
+    }
+
+    /**
+     * Returns all records of the model.
+     *
+     * @param  null|callable  $callable
+     * @return \Illuminate\Database\Eloquent\Collection|\DummyModelNamespace[]
+     */
+    public function all(callable $callable = null)
+    {
+        if ($callable) {
+            $result = $callable($this->model->newModelQuery());
+
+            return $result instanceof Builder ? $result->get() : $result;
+        }
+
+        return $this->model->all();
+    }
+
+    /**
+     * Returns a single record.
+     *
+     * @param  callable|string  $id
+     * @return \Illuminate\Database\Eloquent\Collection|\DummyModelNamespace[]
+     */
+    public function retrieve($id)
+    {
+        if (is_callable($id)) {
+            $result = $id($this->model->newModelQuery());
+
+            return $result instanceof Builder ? $result->first() : $result;
+        }
+
+        return $this->model->find($id);
+    }
+
+    /**
+     * Returns a single record.
+     *
+     * @param  callable|string  $id
+     * @return \Illuminate\Database\Eloquent\Collection|\DummyModelNamespace[]
+     */
+    public function get($id)
+    {
+        return $this->retrieve($id);
+    }
+
+    /**
+     * Creates a new record.
+     *
+     * @param  array  $attributes
+     * @return \DummyModelNamespace
+     */
+    public function create(array $attributes = [])
+    {
+        return $this->model->create($attributes);
+    }
+
+    /**
+     * Updates a given record with attributes.
+     *
+     * @param  \DummyModelNamespace  $dummyModel
+     * @param  array  $attributes
+     * @return \DummyModelNamespace
+     */
+    public function update(DummyModel $dummyModel, array $attributes = [])
+    {
+        return $dummyModel->fill($attributes)->tap(function (DummyModel $dummyModel) {
+            $dummyModel->save();
+        });
+    }
+
+    /**
+     * Deletes a record.
+     *
+     * @param $id
+     * @return \DummyModelNamespace
+     */
+    public function delete($id)
+    {
+        $id = $id instanceof DummyModel ? $this->retrieve($id) : $id;
+
+        $id->delete();
+
+        return $id;
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function getRouteKey()
+    {
+        return $this->model->getRouteKey();
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function getRouteKeyName()
+    {
+        return $this->model->getRouteKeyName();
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function resolveRouteBinding($value, $field = null)
+    {
+        return $this->retrieve($value);
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function resolveChildRouteBinding($childType, $value, $field)
+    {
+        return $this->model->resolveChildRouteBinding($childType, $value, $field);
+    }
+}

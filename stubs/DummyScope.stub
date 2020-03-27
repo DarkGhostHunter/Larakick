@@ -1,0 +1,33 @@
+<?php
+
+namespace DummyNamespace;
+
+use Illuminate\Database\Eloquent\Scope;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Builder;
+
+class DummyScope implements Scope
+{
+    /**
+     * Apply the scope to a given Eloquent query builder.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder  $builder
+     * @param  \Illuminate\Database\Eloquent\Model|\DummyModelNamespace  $model
+     * @return void
+     */
+    public function apply(Builder $builder, Model $model)
+    {
+        // $builder->where('active', true);
+    }
+
+    /**
+     * Extend the query builder with the needed functions.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder  $builder
+     * @return void
+     */
+    public function extend(Builder $builder)
+    {
+        // Add methods to the builder instance if needed.
+    }
+}

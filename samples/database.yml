@@ -47,7 +47,7 @@ models:
         relation: belongsTo:User
       post:
         relation: hasOne:Post
-      moderated: bool default:false
+      moderated_at: timestamp useCurrent
       timestamps: ~
     fillable:
       - body

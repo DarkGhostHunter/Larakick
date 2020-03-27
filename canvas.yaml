@@ -1,0 +1,29 @@
+# This is the configuration for Orchestra Canvas command line
+
+preset: package
+
+namespace: DarkGhostHunter\Larakick
+user-auth-provider: App\User
+
+paths:
+  src: src
+  resource: resources
+
+factory:
+  path: database/factories
+
+migration:
+  path: database/migrations
+  prefix: ''
+
+console:
+  namespace: DarkGhostHunter\Larakick\Console
+
+model:
+  namespace: DarkGhostHunter\Larakick
+
+provider:
+  namespace: DarkGhostHunter\Larakick\Providers
+
+testing:
+  namespace: Tests
